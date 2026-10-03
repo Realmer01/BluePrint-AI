@@ -13,9 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import axios from 'axios'
-import { uuid } from 'drizzle-orm/pg-core'
-import { useAuthContext } from '@/app/provider'
+import { api, getApiError } from '@/lib/apiClient'
 import { useRouter } from 'next/navigation'
 import Constants from '@/data/Constants'
 import { toast } from 'sonner'
@@ -50,7 +48,6 @@ function ImageUpload() {
     const [file, setFile] = useState<any>();
     const [model, setModel] = useState<string>();
     const [description, setDescription] = useState<string>();
-    const { user } = useAuthContext();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
 
@@ -70,27 +67,25 @@ function ImageUpload() {
             return;
         }
         setLoading(true);
-        // Image is stored with the design in the database as a compressed data URL
-        const imageUrl = await compressImage(file);
+        try {
+            // Image is stored with the design in the database as a compressed data URL
+            const imageUrl = await compressImage(file);
 
-        const uid = uuid4();
-        console.log(uid);
-        // Save Info To Database
-        const result = await axios.post('/api/wireframe-to-code', {
-            uid: uid,
-            description: description,
-            imageUrl: imageUrl,
-            model: model,
-            email: user?.email
-        });
-        if (result.data?.error) {
-            console.log("Not Enough credits");
-            toast('Not Enough Credits!');
+            const uid = uuid4();
+            // Save Info To Database (the signed-in user comes from the auth token)
+            await api.post('/api/wireframe-to-code', {
+                uid: uid,
+                description: description,
+                imageUrl: imageUrl,
+                model: model
+            });
+            router.push('/view-code/' + uid);
+        } catch (e) {
+            toast.error(e instanceof Error && e.message == 'Could not read image'
+                ? 'Could not read that image. Please choose a PNG or JPG file.'
+                : getApiError(e));
             setLoading(false);
-            return;
         }
-        setLoading(false);
-        router.push('/view-code/' + uid);
     }
 
     return (

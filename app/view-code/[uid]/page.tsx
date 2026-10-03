@@ -1,13 +1,13 @@
 "use client"
 import AppHeader from '@/app/_components/AppHeader'
-import Constants from '@/data/Constants'
-import axios from 'axios'
-import { Loader2, LoaderCircle } from 'lucide-react'
-import { useParams, usePathname } from 'next/navigation'
+import { api, getApiError, getAuthHeaders } from '@/lib/apiClient'
+import { extractCode } from '@/lib/extractCode'
+import { Loader2 } from 'lucide-react'
+import { useParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import SelectionDetail from '../_components/SelectionDetail'
 import CodeEditor from '../_components/CodeEditor'
-import { read } from 'fs'
 
 export interface RECORD {
     id: number,
@@ -19,94 +19,89 @@ export interface RECORD {
     uid: string
 }
 
-// Pull the code out of a (possibly partial) model reply wrapped in ``` fences
-const extractCode =(raw: string) => {
-    const start = raw.indexOf('```');
-    if (start === -1) return raw;
-    const body = raw.slice(start + 3).replace(/^[a-zA-Z]*\r?\n?/, '');
-    const end = body.lastIndexOf('```');
-    return end === -1 ? body : body.slice(0, end);
-}
-
 function ViewCode() {
 
     const { uid } = useParams();
     const [loading, setLoading] = useState(false);
+    const [generating, setGenerating] = useState(false);
     const [codeResp, setCodeResp] = useState('');
     const [record, setRecord] = useState<RECORD | null>();
     const [isReady, setIsReady] = useState(false);
-    // const [isExistingCode,setIsExistingCode]=useState();
+    const [pageError, setPageError] = useState('');
     useEffect(() => {
-        if (typeof window !== undefined) {
-            uid && GetRecordInfo();
-
-        }
+        uid && GetRecordInfo();
     }, [uid])
 
     const GetRecordInfo = async (regen = false) => {
-        console.log("RUN...")
-        setIsReady(false);
-        setCodeResp('');
         setLoading(true)
+        try {
+            const result = await api.get('/api/wireframe-to-code?uid=' + uid)
+            const resp: RECORD = result.data;
+            setRecord(resp)
 
-        const result = await axios.get('/api/wireframe-to-code?uid=' + uid)
-
-        const resp = result?.data;
-        setRecord(result?.data)
-
-        if (resp?.code == null || regen) {
-            GenerateCode(resp);
-        }
-        else {
-            setCodeResp(resp?.code?.resp);
+            // No saved code yet (new design, or its first attempt failed) -> generate it
+            if (!resp?.code?.resp || regen) {
+                await GenerateCode(resp, regen ? codeResp : '');
+            }
+            else {
+                setCodeResp(resp.code.resp);
+                setIsReady(true);
+                setLoading(false);
+            }
+        } catch (e) {
             setLoading(false);
-            setIsReady(true);
+            setPageError(getApiError(e, 'Could not load this design.'));
         }
-        if (resp?.error) {
-            console.log("No Record Found")
-        }
-        // setLoading(false);
     }
 
-    const GenerateCode = async (record: RECORD) => {
+    // Streams generated code into the editor. The server saves it once the stream completes.
+    const GenerateCode = async (record: RECORD, previousCode: string) => {
         setLoading(true)
-        const res = await fetch('/api/ai-model', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                description: record?.description + ":" + Constants.PROMPT,
-                model: record.model,
-                imageUrl: record?.imageUrl
-            })
-        });
-
-        if (!res.body) return;
-        setLoading(false);
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        // Fences can be split across chunks, so extract from the full text each time
-        let rawText = '';
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            rawText += decoder.decode(value, { stream: true });
-            setCodeResp(extractCode(rawText));
+        setGenerating(true)
+        setIsReady(false)
+        // On failure keep whatever code was showing before, so a failed regenerate loses nothing
+        const fail = (message: string) => {
+            toast.error(message);
+            setCodeResp(previousCode);
+            setIsReady(!!previousCode);
+            setLoading(false);
+            setGenerating(false);
         }
 
-        const finalCode = extractCode(rawText);
-        setCodeResp(finalCode);
-        setIsReady(true);
-        UpdateCodeToDb(record?.uid, finalCode);
-    }
+        try {
+            const res = await fetch('/api/ai-model', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+                body: JSON.stringify({ uid: record.uid })
+            });
 
-    const UpdateCodeToDb = async (uid: string, code: string) => {
-        const result = await axios.put('/api/wireframe-to-code', {
-            uid: uid,
-            codeResp: { resp: code }
-        });
+            if (!res.ok || !res.body) {
+                const data = await res.json().catch(() => ({}));
+                return fail(data.error ?? 'Code generation failed. Please try Regenerate.');
+            }
 
-        console.log(result);
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            // Fences can be split across chunks, so extract from the full text each time
+            let rawText = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                rawText += decoder.decode(value, { stream: true });
+                setLoading(false);
+                setCodeResp(extractCode(rawText));
+            }
+
+            const finalCode = extractCode(rawText).trim();
+            if (!finalCode) return fail('The AI returned no code. Please try Regenerate.');
+            setCodeResp(finalCode);
+            setIsReady(true);
+            setLoading(false);
+            setGenerating(false);
+        } catch (e) {
+            fail('The AI stopped responding partway through. Please try Regenerate.');
+        }
     }
 
 
@@ -118,12 +113,16 @@ function ViewCode() {
                 <div>
                     {/* Selection Details  */}
                     <SelectionDetail record={record} regenrateCode={() => { GetRecordInfo(true) }}
-                        isReady={isReady}
+                        isReady={!loading && !generating}
                     />
                 </div>
                 <div className='col-span-4'>
                     {/* Code Editor  */}
-                    {loading ? <div>
+                    {pageError ? <div>
+                        <h2 className='font-bold text-xl text-center p-20 flex items-center justify-center
+                        bg-slate-100 h-[80vh] rounded-xl text-gray-500'>{pageError}</h2>
+                    </div> :
+                    loading ? <div>
                         <h2 className='font-bold text-2xl text-center p-20 flex items-center justify-center
                         bg-slate-100 h-[80vh] rounded-xl
                         '> <Loader2 className='animate-spin' /> Anaylzing the Wireframe...</h2>

@@ -1,7 +1,7 @@
 "use client"
 import { useAuthContext } from '@/app/provider'
 import { Button } from '@/components/ui/button'
-import axios from 'axios'
+import { api } from '@/lib/apiClient'
 import React, { useEffect, useState } from 'react'
 
 function Credits() {
@@ -13,8 +13,7 @@ function Credits() {
     }, [user])
 
     const GetUserCredits = async () => {
-        const result = await axios.get('/api/user?email=' + user?.email);
-        console.log(result.data)
+        const result = await api.get('/api/user');
         setUserData(result.data);
     }
 

@@ -3,7 +3,7 @@ import React, { useEffect } from 'react'
 import { useAuthContext } from '../provider';
 import { useRouter } from 'next/navigation';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import axios from "axios";
+import { api } from '@/lib/apiClient';
 import AppHeader from '../_components/AppHeader';
 import { AppSidebar } from '../_components/AppSidebar';
 import { auth } from '@/configs/firebaseConfig';
@@ -30,11 +30,8 @@ function DashboardProvider({
 
 
     const checkUser = async () => {
-        const result = await axios.post('/api/user', {
-            userName: user?.user?.displayName,
-            userEmail: user?.user?.email
-        });
-        console.log(user);
+        // Creates the user (with free credits) on first login; identity comes from the auth token
+        await api.post('/api/user');
     }
 
 

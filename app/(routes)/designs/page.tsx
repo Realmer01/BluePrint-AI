@@ -1,6 +1,6 @@
 "use client"
 import { useAuthContext } from '@/app/provider'
-import axios from 'axios';
+import { api } from '@/lib/apiClient';
 import React, { useEffect, useState } from 'react'
 import DesignCard from './_components/DesignCard';
 import { RECORD } from '@/app/view-code/[uid]/page';
@@ -15,9 +15,7 @@ function Designs() {
 
     const GetAllUserWireframe = async () => {
 
-        const result = await axios.get('/api/wireframe-to-code?email='
-            + user?.email);
-        console.log(result.data);
+        const result = await api.get('/api/wireframe-to-code');
         setWireframeList(result.data);
     }
 

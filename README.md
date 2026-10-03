@@ -54,7 +54,7 @@ BlueprintAI is a full-stack AI app that turns wireframe images into **React + Ta
    | Variable | Where to get it |
    |---|---|
    | `NEXT_PUBLIC_FIREBASE_*` | Firebase Console → Project settings → Your apps → Web app config |
-   | `NEXT_PUBLIC_NEON_DB_CONNECTION_STRING` | Neon Console → your project → Connection string |
+   | `NEON_DB_CONNECTION_STRING` | Neon Console → your project → Connection string (server-only, never sent to the browser) |
    | `OPENROUTER_AI_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys) |
 
    `OPENROUTER_AI_API_KEY` must be set for `npm run build` to succeed. The app uses OpenRouter's free (`:free`) models, so no credit is needed, but free models are limited to about 50 requests per day.
