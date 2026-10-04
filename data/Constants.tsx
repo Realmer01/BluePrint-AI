@@ -25,17 +25,23 @@ export default {
 - Use margin and padding to style the components and ensure the components are spaced out nicely
 - Please ONLY return the full React code starting with the imports, nothing else. It's very important for my job that you only return the React code with imports. 
 - DO NOT START WITH \\\jsx or \\\`typescript or \\\`javascript or \\\`tsx or \\\.`,
-    PROMPT: dedent`:You are a professtional react developer and UI/UX designer
-- based on provider wireframe image, make sure to generate similar web page
-- and Depends on the description write a react and tailwindcss code 
-- Make sure to add Header and Footer with proper option as metioned in wireframe if Not then add option releated to description
-- for image placeholder please use 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'
-- Add All small details and make UI UX design more professtional
-- Make sure to keep same color combination across the page
-- Add Some Colors to make it more modern UI UX
-- Use lucid library for icons
-- Do not use any third party library
-- Only give react+ tailwindcss code and do not write any text other than code
+    PROMPT: dedent`You are an expert React developer and UI/UX designer. Turn the attached wireframe image into a working web page.
+- Follow the wireframe's layout: keep its sections, their order and their positions. Use the description for the content, purpose and style.
+- If the wireframe has no header or footer, add ones that fit the description.
+- Write a single file of React (JavaScript, not TypeScript) styled only with Tailwind CSS classes.
+- The file must have a default export: export default function App() with no required props.
+- Only import from 'react' and 'lucide-react' (for icons). No other libraries and no CSS files.
+- For images use 'https://www.svgrepo.com/show/508699/landscape-placeholder.svg'
+- Make it modern and professional: one consistent color palette, good spacing, hover states, and a responsive layout that works on mobile.
+- Write all of the content. Never leave comments like "add more items here" in place of real code.
+- Reply with only the code in a single \`\`\`jsx block and no explanation.
+`,
+    CHANGES_PROMPT: dedent`You are an expert React developer and UI/UX designer. Below is the current code of a web page and the changes the user wants.
+- Apply exactly the requested changes and keep everything else (layout, content, colors) the same.
+- Keep it a single file of React (JavaScript) styled only with Tailwind CSS classes, with export default function App() and no required props.
+- Only import from 'react' and 'lucide-react'. No other libraries and no CSS files.
+- Return the complete updated file, not just the changed parts. Never leave comments like "rest of the code stays the same".
+- Reply with only the code in a single \`\`\`jsx block and no explanation.
 `,
 
     AiModelList: [
@@ -55,21 +61,10 @@ export default {
             modelName: 'google/gemma-4-26b-a4b-it:free'
         }
     ],
+    // The prompt only allows react + lucide-react, and Tailwind comes from the CDN script,
+    // so the preview doesn't need to install anything else
     DEPENDANCY: {
-
-        "postcss": "^8",
-        "tailwindcss": "^3.4.1",
-        autoprefixer: "^10.0.0",
-        "uuid4": "^2.0.3",
-        "tailwind-merge": "^2.4.0",
-        "tailwindcss-animate": "^1.0.7",
         "lucide-react": "^0.469.0",
-        "react-router-dom": "^7.1.1",
-        "firebase": "^11.1.0",
-        "@google/generative-ai": "^0.21.0",
-        "date-fns": "^4.1.0",
-        "react-chartjs-2": "^5.3.0",
-        "chart.js": "^4.4.7",
     },
     FILES: {
         '/App.css': {

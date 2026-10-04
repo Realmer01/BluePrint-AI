@@ -8,19 +8,12 @@ function Authentication({ children }: any) {
     const provider = new GoogleAuthProvider();
 
     const onButtonPress = () => {
+        // The signed-in user reaches the app through onAuthStateChanged in app/provider.tsx
         signInWithPopup(auth, provider)
-            .then((result) => {
-                // This gives you a Google Access Token. You can use it to access the Google API.
-                const credential: any = GoogleAuthProvider.credentialFromResult(result);
-                const token = credential.accessToken;
-                // The signed-in user info.
-                const user = result.user;
-                console.log(user);
-                // IdP data available using getAdditionalUserInfo(result)
-                // ...
-            }).catch((error) => {
-                console.error('Sign-in failed:', error.code, error.message);
+            .catch((error) => {
+                // Closing the popup (or clicking sign-in twice) isn't an error worth reporting
                 if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') return;
+                console.warn('Sign-in failed:', error.code);
                 if (error.code === 'auth/unauthorized-domain') {
                     toast.error('Sign-in is not enabled for this domain yet. Add it to Firebase Authorized domains.');
                 } else if (error.code === 'auth/popup-blocked') {

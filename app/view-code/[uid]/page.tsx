@@ -28,6 +28,7 @@ function ViewCode() {
     const [record, setRecord] = useState<RECORD | null>();
     const [isReady, setIsReady] = useState(false);
     const [pageError, setPageError] = useState('');
+    const [loadingText, setLoadingText] = useState('Analyzing the wireframe...');
     useEffect(() => {
         uid && GetRecordInfo();
     }, [uid])
@@ -55,7 +56,9 @@ function ViewCode() {
     }
 
     // Streams generated code into the editor. The server saves it once the stream completes.
-    const GenerateCode = async (record: RECORD, previousCode: string) => {
+    // With `changes`, the AI edits the current code instead of starting over. Returns true on success.
+    const GenerateCode = async (record: RECORD, previousCode: string, changes = ''): Promise<boolean> => {
+        setLoadingText(changes ? 'Applying your changes...' : 'Analyzing the wireframe...')
         setLoading(true)
         setGenerating(true)
         setIsReady(false)
@@ -66,13 +69,14 @@ function ViewCode() {
             setIsReady(!!previousCode);
             setLoading(false);
             setGenerating(false);
+            return false;
         }
 
         try {
             const res = await fetch('/api/ai-model', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-                body: JSON.stringify({ uid: record.uid })
+                body: JSON.stringify({ uid: record.uid, changes })
             });
 
             if (!res.ok || !res.body) {
@@ -99,9 +103,17 @@ function ViewCode() {
             setIsReady(true);
             setLoading(false);
             setGenerating(false);
+            return true;
         } catch (e) {
-            fail('The AI stopped responding partway through. Please try Regenerate.');
+            return fail('The AI stopped responding partway through. Please try Regenerate.');
         }
+    }
+
+    const ApplyChanges = async (changes: string) => {
+        if (!record) return false;
+        const ok = await GenerateCode(record, codeResp, changes);
+        if (ok) toast.success('Your changes were applied (1 credit used).');
+        return ok;
     }
 
 
@@ -113,7 +125,9 @@ function ViewCode() {
                 <div>
                     {/* Selection Details  */}
                     <SelectionDetail record={record} regenrateCode={() => { GetRecordInfo(true) }}
+                        applyChanges={ApplyChanges}
                         isReady={!loading && !generating}
+                        hasCode={isReady && !!codeResp}
                     />
                 </div>
                 <div className='col-span-4'>
@@ -123,9 +137,9 @@ function ViewCode() {
                         bg-slate-100 h-[80vh] rounded-xl text-gray-500'>{pageError}</h2>
                     </div> :
                     loading ? <div>
-                        <h2 className='font-bold text-2xl text-center p-20 flex items-center justify-center
+                        <h2 className='font-bold text-2xl text-center p-20 flex items-center justify-center gap-3
                         bg-slate-100 h-[80vh] rounded-xl
-                        '> <Loader2 className='animate-spin' /> Anaylzing the Wireframe...</h2>
+                        '> <Loader2 className='animate-spin' /> {loadingText}</h2>
                     </div> :
                         <CodeEditor codeResp={codeResp} isReady={isReady}
                         />

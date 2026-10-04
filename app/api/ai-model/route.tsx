@@ -13,26 +13,39 @@ const openai = new OpenAI({
 })
 export const maxDuration = 300;
 
-// Generate code for one of the signed-in user's designs. The prompt is built here from the
-// saved design, so this endpoint can't be used for arbitrary prompts.
+const MAX_CHANGES_LENGTH = 1000;
+
+// Generate code for one of the signed-in user's designs, or with "changes", edit its saved code.
+// The prompt is built here from the saved design, so this endpoint can't be used for arbitrary prompts.
 export async function POST(req: Request) {
     const user = await getAuthUser(req);
     if (!user) return unauthorized();
 
     let record;
+    let changes = '';
     try {
-        const { uid } = await req.json();
+        const body = await req.json();
+        changes = typeof body.changes === 'string' ? body.changes.trim() : '';
+        if (changes.length > MAX_CHANGES_LENGTH) {
+            return NextResponse.json({ error: `Please keep your changes under ${MAX_CHANGES_LENGTH} characters.` }, { status: 400 });
+        }
         const result = await db.select().from(WireframeToCodeTable)
-            .where(and(eq(WireframeToCodeTable.uid, String(uid)), eq(WireframeToCodeTable.createdBy, user.email)));
+            .where(and(eq(WireframeToCodeTable.uid, String(body.uid)), eq(WireframeToCodeTable.createdBy, user.email)));
         record = result[0];
         if (!record) return NextResponse.json({ error: 'Design not found.' }, { status: 404 });
     } catch (e) {
         return serverError(e);
     }
 
-    // The first successful generation of a design costs a credit; regenerating is free
-    const isFirstGeneration = !(record.code as { resp?: string } | null)?.resp;
-    if (isFirstGeneration) {
+    const savedCode = (record.code as { resp?: string } | null)?.resp;
+    const isFirstGeneration = !savedCode;
+    if (changes && isFirstGeneration) {
+        return NextResponse.json({ error: 'Generate the code first, then request changes.' }, { status: 400 });
+    }
+
+    // The first generation and every requested change cost a credit; plain regenerating is free
+    const chargesCredit = isFirstGeneration || !!changes;
+    if (chargesCredit) {
         try {
             const userResult = await db.select().from(usersTable).where(eq(usersTable.email, user.email));
             if (!userResult[0]?.credits || userResult[0].credits <= 0) {
@@ -57,10 +70,16 @@ export async function POST(req: Request) {
             messages: [
                 {
                     "role": "user",
-                    "content": [
+                    // Changes only need the current code; it already reflects the wireframe
+                    "content": changes ? [
                         {
                             "type": "text",
-                            "text": record.description + ":" + Constants.PROMPT
+                            "text": `${Constants.CHANGES_PROMPT}\nCurrent code:\n\`\`\`jsx\n${savedCode}\n\`\`\`\n\nChanges requested by the user:\n${changes}`
+                        }
+                    ] : [
+                        {
+                            "type": "text",
+                            "text": `${Constants.PROMPT}\nDescription of the page:\n${record.description}`
                         },
                         {
                             "type": "image_url",
@@ -105,7 +124,7 @@ export async function POST(req: Request) {
                 await db.update(WireframeToCodeTable)
                     .set({ code: { resp: code } })
                     .where(eq(WireframeToCodeTable.uid, uid));
-                if (isFirstGeneration) {
+                if (chargesCredit) {
                     await db.update(usersTable)
                         .set({ credits: sql`${usersTable.credits} - 1` })
                         .where(and(eq(usersTable.email, userEmail), gt(usersTable.credits, 0)));

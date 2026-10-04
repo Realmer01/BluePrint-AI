@@ -25,9 +25,12 @@ function Credits() {
              flex justify-between items-center mt-6'>
                 <div>
                     <h2 className='font-bold text-xl'>My Credits:</h2>
-                    {userData?.credits && <p className='text-lg text-gray-500'>{userData?.credits} Credits left</p>}
+                    <p className='text-lg text-gray-500'>
+                        {userData ? `${userData.credits ?? 0} ${userData.credits == 1 ? 'credit' : 'credits'} left` : 'Loading...'}
+                    </p>
+                    <p className='text-sm text-gray-400 mt-1'>Each new design and each requested change uses 1 credit. Regenerating an existing design is free.</p>
                 </div>
-                <Button>Buy More Credits</Button>
+                <Button disabled>More credits coming soon</Button>
             </div>
         </div>
     )

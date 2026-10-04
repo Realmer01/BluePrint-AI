@@ -26,7 +26,7 @@ function CodeEditor({ codeResp, isReady }: any) {
                 <SandpackProvider template="react"
                     theme={aquaBlue}
                     files={{
-                        "/app.js": {
+                        "/App.js": {
                             code: `${codeResp}`,
                             active: true
                         }

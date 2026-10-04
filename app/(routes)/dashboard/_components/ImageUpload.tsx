@@ -5,7 +5,7 @@ import { CloudUpload, Loader2Icon, WandSparkles, X } from 'lucide-react'
 import Image from 'next/image'
 //@ts-ignore
 import uuid4 from "uuid4";
-import React, { ChangeEvent, useState } from 'react'
+import React, { ChangeEvent, DragEvent, useEffect, useState } from 'react'
 import {
     Select,
     SelectContent,
@@ -17,6 +17,8 @@ import { api, getApiError } from '@/lib/apiClient'
 import { useRouter } from 'next/navigation'
 import Constants from '@/data/Constants'
 import { toast } from 'sonner'
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // before compression; it's shrunk well below this
 
 // Shrink the wireframe to at most 1280px and re-encode as JPEG so it fits in the database
 const compressImage = (file: File, maxSize = 1280): Promise<string> =>
@@ -50,22 +52,54 @@ function ImageUpload() {
     const [description, setDescription] = useState<string>();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [dragging, setDragging] = useState(false);
+
+    const selectFile = (selected?: File | null) => {
+        if (!selected) return;
+        if (!selected.type.startsWith('image/')) {
+            toast.error('Please choose an image file (PNG or JPG).');
+            return;
+        }
+        if (selected.size > MAX_FILE_SIZE) {
+            toast.error('That image is too large. Please use one under 10 MB.');
+            return;
+        }
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setFile(selected);
+        setPreviewUrl(URL.createObjectURL(selected));
+    }
+
+    const clearFile = () => {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setFile(undefined);
+        setPreviewUrl(null);
+    }
+
+    // Lets users paste a screenshot straight from the clipboard (Ctrl+V)
+    useEffect(() => {
+        const onPaste = (event: ClipboardEvent) => {
+            const pasted = Array.from(event.clipboardData?.files ?? []).find(f => f.type.startsWith('image/'));
+            if (pasted) selectFile(pasted);
+        }
+        window.addEventListener('paste', onPaste);
+        return () => window.removeEventListener('paste', onPaste);
+    }, [previewUrl])
 
     const OnImageSelect = (event: ChangeEvent<HTMLInputElement>) => {
-        const files = event.target.files;
-        if (files) {
-            console.log(files[0])
-            const imageUrl = URL.createObjectURL(files[0]);
-            setFile(files[0]);
-            setPreviewUrl(imageUrl);
-        }
+        selectFile(event.target.files?.[0]);
+        event.target.value = ''; // so picking the same file again still triggers onChange
+    }
+
+    const OnDrop = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        setDragging(false);
+        selectFile(event.dataTransfer.files?.[0]);
     }
 
     const OnConverToCodeButtonClick = async () => {
-        if (!file || !model || !description) {
-            console.log("Select All Field");
-            return;
-        }
+        if (!file) return toast.error('Please upload a wireframe image first.');
+        if (!model) return toast.error('Please select an AI model.');
+        if (!description?.trim()) return toast.error('Please describe your web page.');
         setLoading(true);
         try {
             // Image is stored with the design in the database as a compressed data URL
@@ -91,13 +125,17 @@ function ImageUpload() {
     return (
         <div className='mt-10'>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-10'>
-                {!previewUrl ? <div className='p-7 border border-dashed rounded-md shadow-md
-                flex flex-col items-center justify-center
-                '>
+                {!previewUrl ? <div
+                    onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={OnDrop}
+                    className={`p-7 border border-dashed rounded-md shadow-md
+                flex flex-col items-center justify-center transition-colors
+                ${dragging ? 'border-primary bg-blue-50' : ''}`}>
                     <CloudUpload className='h-10 w-10 text-primary' />
                     <h2 className='font-bold text-lg'>Upload Image</h2>
 
-                    <p className='text-gray-400 mt-2'>Click Button Select Wireframe Image </p>
+                    <p className='text-gray-400 mt-2 text-center'>Drag and drop your wireframe here, paste it with Ctrl+V, or select a file</p>
                     <div className='p-5 border border-dashed w-full flex mt-4 justify-center'>
                         <label htmlFor='imageSelect'>
                             <h2 className='p-2 bg-blue-100 font-bold text-primary  rounded-md px-5'>Select Image</h2>
@@ -116,9 +154,9 @@ function ImageUpload() {
                         <Image src={previewUrl} alt='preview' width={500} height={500}
                             className='w-full h-[250px] object-contain'
                         />
-                        <X className='flex ite justify-end w-full cursor-pointer'
-                            onClick={() => setPreviewUrl(null)}
-                        />
+                        <Button variant='ghost' size='sm' className='mt-2 w-full' onClick={clearFile}>
+                            <X /> Remove image
+                        </Button>
 
                     </div>
                 }
