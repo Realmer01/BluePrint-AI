@@ -3,6 +3,7 @@ import { usersTable, WireframeToCodeTable } from "@/configs/schema";
 import Constants from "@/data/Constants";
 import { extractCode } from "@/lib/extractCode";
 import { getAuthUser, serverError, unauthorized } from "@/lib/firebaseAdmin";
+import { refillDailyCredits } from "@/lib/credits";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import OpenAI from "openai"
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
     const chargesCredit = isFirstGeneration || !!changes;
     if (chargesCredit) {
         try {
+            await refillDailyCredits(user.email);
             const userResult = await db.select().from(usersTable).where(eq(usersTable.email, user.email));
             if (!userResult[0]?.credits || userResult[0].credits <= 0) {
                 return NextResponse.json({ error: 'Not enough credits!' }, { status: 402 });
@@ -59,7 +61,7 @@ export async function POST(req: Request) {
     // Selected model first, then the others as fallbacks (free models are often rate-limited)
     const allModels = Constants.AiModelList.map(item => item.modelName);
     const primaryModel = Constants.AiModelList.find(item => item.name == record.model)?.modelName ?? allModels[0];
-    const models = [primaryModel, ...allModels.filter(m => m != primaryModel)];
+    const models = [primaryModel, ...allModels.filter(m => m != primaryModel), ...Constants.FallbackModels];
 
     let response: AsyncIterable<OpenAI.Chat.ChatCompletionChunk>;
     try {

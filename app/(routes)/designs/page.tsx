@@ -48,7 +48,8 @@ function Designs() {
             </div> :
             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7 mt-10'>
                 {wireframeList.map((item) => (
-                    <DesignCard key={item.uid} item={item} />
+                    <DesignCard key={item.uid} item={item}
+                        onDeleted={(uid: string) => setWireframeList(list => list.filter(x => x.uid != uid))} />
                 ))}
             </div>}
         </div>

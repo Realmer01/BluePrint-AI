@@ -29,6 +29,7 @@ function ViewCode() {
     const [isReady, setIsReady] = useState(false);
     const [pageError, setPageError] = useState('');
     const [loadingText, setLoadingText] = useState('Analyzing the wireframe...');
+    const [editedCode, setEditedCode] = useState('');
     useEffect(() => {
         uid && GetRecordInfo();
     }, [uid])
@@ -45,7 +46,8 @@ function ViewCode() {
                 await GenerateCode(resp, regen ? codeResp : '');
             }
             else {
-                setCodeResp(resp.code.resp);
+                // Re-clean on load so designs saved before a fence-stripping fix still run
+                setCodeResp(extractCode(resp.code.resp));
                 setIsReady(true);
                 setLoading(false);
             }
@@ -109,9 +111,27 @@ function ViewCode() {
         }
     }
 
+    // Saves code the user edited by hand in the editor
+    const SaveCode = async (code: string) => {
+        try {
+            await api.put('/api/wireframe-to-code', { uid, code });
+            setCodeResp(code);
+            return true;
+        } catch (e) {
+            toast.error(getApiError(e, 'Could not save your changes.'));
+            return false;
+        }
+    }
+
     const ApplyChanges = async (changes: string) => {
         if (!record) return false;
-        const ok = await GenerateCode(record, codeResp, changes);
+        // The AI edits the saved code, so save any hand edits first or they'd be lost
+        let baseCode = codeResp;
+        if (editedCode.trim() && editedCode.trim() != codeResp.trim()) {
+            if (!await SaveCode(editedCode)) return false;
+            baseCode = editedCode;
+        }
+        const ok = await GenerateCode(record, baseCode, changes);
         if (ok) toast.success('Your changes were applied (1 credit used).');
         return ok;
     }
@@ -142,6 +162,8 @@ function ViewCode() {
                         '> <Loader2 className='animate-spin' /> {loadingText}</h2>
                     </div> :
                         <CodeEditor codeResp={codeResp} isReady={isReady}
+                            onSave={SaveCode} onCodeChange={setEditedCode}
+                            fileName={record?.description}
                         />
                     }
                 </div>

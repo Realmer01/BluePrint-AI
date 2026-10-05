@@ -9,9 +9,9 @@ import { Eye, FolderOpen, Gift, PenTool } from "lucide-react";
 
 const features = [
   { icon: PenTool, title: "Sketch to code", description: "Upload a photo or screenshot of any wireframe and get React + Tailwind code" },
-  { icon: Eye, title: "Live preview", description: "See the page running next to the code and edit it right in the browser" },
-  { icon: Gift, title: "Free to try", description: "Sign in with Google and start with free credits, no card needed" },
-  { icon: FolderOpen, title: "Saved designs", description: "Every wireframe and its code is saved so you can come back and regenerate" },
+  { icon: Eye, title: "Live preview", description: "Check it on desktop, tablet and mobile, ask for changes in plain English, and edit the code yourself" },
+  { icon: Gift, title: "Free to try", description: "Sign in with Google and get 3 free credits every day, no card needed" },
+  { icon: FolderOpen, title: "Saved designs", description: "Your designs are saved. Download any of them as a React component or an HTML file that opens anywhere" },
 ];
 
 export default function Home() {

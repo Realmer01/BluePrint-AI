@@ -30,7 +30,10 @@ function Credits() {
                     </p>
                     <p className='text-sm text-gray-400 mt-1'>Each new design and each requested change uses 1 credit. Regenerating an existing design is free.</p>
                 </div>
-                <Button disabled>More credits coming soon</Button>
+                <div className='text-right'>
+                    <p className='font-medium'>Free daily top-up</p>
+                    <p className='text-sm text-gray-500'>Your credits refill to 3 every day</p>
+                </div>
             </div>
         </div>
     )

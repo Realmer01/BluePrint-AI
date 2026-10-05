@@ -18,6 +18,16 @@ import { useRouter } from 'next/navigation'
 import Constants from '@/data/Constants'
 import { toast } from 'sonner'
 
+// One-click descriptions so users don't have to start from a blank box
+const DESCRIPTION_STARTERS = [
+    { label: 'Landing page', text: 'Landing page for a startup with a hero section, features, testimonials, pricing and a call to action. Modern style with a blue and white color scheme.' },
+    { label: 'Portfolio', text: 'Personal portfolio for a developer with an about section, skills, project cards with links and a contact form. Clean, minimal style.' },
+    { label: 'Dashboard', text: 'Admin dashboard with a sidebar, stat cards, a recent activity table and a chart placeholder. Professional look with a dark sidebar.' },
+    { label: 'Online store', text: 'Online store page with a product grid, filters, product cards with price and add to cart buttons, and a cart icon in the header.' },
+    { label: 'Restaurant', text: 'Restaurant website with a hero image, menu sections with prices, opening hours, location and a table booking form. Warm colors.' },
+    { label: 'Sign up form', text: 'Sign up page with a form for name, email and password, social login buttons and a short product pitch beside the form.' },
+];
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // before compression; it's shrunk well below this
 
 // Shrink the wireframe to at most 1280px and re-encode as JPEG so it fits in the database
@@ -48,7 +58,7 @@ function ImageUpload() {
 
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const [file, setFile] = useState<any>();
-    const [model, setModel] = useState<string>();
+    const [model, setModel] = useState<string>(Constants.AiModelList[0].name);
     const [description, setDescription] = useState<string>();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -163,7 +173,7 @@ function ImageUpload() {
                 <div className='p-7 border shadow-md rounded-lg'>
 
                     <h2 className='font-bold text-lg'>Select AI Model</h2>
-                    <Select onValueChange={(value) => setModel(value)}>
+                    <Select value={model} onValueChange={(value) => setModel(value)}>
                         <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select AI Model" />
                         </SelectTrigger>
@@ -173,6 +183,7 @@ function ImageUpload() {
                                     <div className='flex items-center gap-2'>
                                         <Image src={model.icon} alt={model.name} width={25} height={25} />
                                         <h2> {model.name}</h2>
+                                        <span className='text-xs text-gray-400'>{model.hint}</span>
                                     </div>
 
                                 </SelectItem>
@@ -182,11 +193,22 @@ function ImageUpload() {
                         </SelectContent>
                     </Select>
 
-                    <h2 className='font-bold text-lg mt-7'>Enter Description about your webpage</h2>
+                    <h2 className='font-bold text-lg mt-7'>Describe your web page</h2>
+                    <p className='text-sm text-gray-400'>What it&apos;s for, the content and the style. Or start from one of these:</p>
+                    <div className='flex flex-wrap gap-2 mt-3'>
+                        {DESCRIPTION_STARTERS.map((starter) => (
+                            <button key={starter.label} type='button'
+                                onClick={() => setDescription(starter.text)}
+                                className='text-xs px-3 py-1 rounded-full border border-gray-200 hover:border-primary hover:text-primary transition-colors'>
+                                {starter.label}
+                            </button>
+                        ))}
+                    </div>
                     <Textarea
+                        value={description ?? ''}
                         onChange={(event) => setDescription(event?.target.value)}
                         className='mt-3 h-[150px]'
-                        placeholder='Write about your web page' />
+                        placeholder='e.g. Landing page for a coffee shop with a menu section, opening hours and a warm brown color scheme' />
                 </div>
             </div>
 
